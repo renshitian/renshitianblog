@@ -31,6 +31,14 @@ class BlogEntry(ndb.Model):
   owner = ndb.StringProperty()
 
 
+class PostEntry(ndb.Model):
+  blogName = ndb.StringProperty()
+  date = ndb.DateTimeProperty(auto_now=True)
+  owner = ndb.StringProperty()
+  title = ndb.StringProperty()
+  content = ndb.TextProperty()
+
+
 class MainHandler(webapp2.RequestHandler):
 
     def get(self):
@@ -61,25 +69,71 @@ class MainHandler(webapp2.RequestHandler):
 #step 2: write post to blog, provide a dropdown list to choose which blog to write post for
 class writePostHandler(webapp2.RequestHandler):
     context={
-        'display1' : '',
-        'display2' : '',
-        'welcome' : ''
+        'display_form' : '',
+        'display_write_success' : '',
+        'welcome' : '',
+        'blogs' : []
         }
+    
+    blogName = ''
     def get(self):
         if users.get_current_user():
-            
-            self.context['welcome']='Hello '+str(users.get_current_user())
-            self.context['display1'] = 'display:inline'
-            self.context['display2'] = 'display:none'
+            self.blogName = self.request.get('blogName')
+            self.context['welcome']=('Author: '+str(users.get_current_user()))
+            query = BlogEntry.query(BlogEntry.owner==str(users.get_current_user()))
+
+            if self.blogName:
+              self.context['blogName'] = self.blogName
+              self.context['display_selection'] = 'display:none'
+              self.context['display_form'] = 'display:inline'
+              self.context['fromWhere'] = 'definedBlog'
+              
+
+            else:
+              if query.count()>0:
+                self.context['blogName'] = 'Choose Blog to Write Post: '
+                self.context['display_selection'] = 'display:inline'
+                self.context['display_form'] = 'display:inline'
+                self.context['blogs'] = query
+                self.context['fromWhere'] = 'selection'
+              else:
+                self.context['blogName'] = 'To Write Post, Create Blog First!!'
+                self.context['display_form'] = 'display:none'
+                
+            self.context['display_write_success'] = 'display:none'
             self.response.write(template.render(os.path.join(os.path.dirname(__file__),'writePost.html'),self.context))           
             #self.response.write(self.request.get('blogName')) used for get http-get method var, if can get, hide the dropdown list, it not show dropdown list to choose
         else:
             self.redirect(users.create_login_url(self.request.uri))
 
     def post(self):
-        self.context['display1'] = 'display:none'
-        self.context['display2'] = 'display:inline'
+        self.context['display_form'] = 'display:none'
+        self.context['display_write_success'] = 'display:inline'
         self.context['welcome']='Hello '+str(users.get_current_user())
+        fromWhere = cgi.escape(self.request.get('chooseFromWhere'))
+        blog=''
+        if fromWhere=='selection':
+          blog=cgi.escape(self.request.get('choosenBlog'))
+        else:
+          blog=cgi.escape(self.request.get('definedBlog'))
+
+        title = cgi.escape(self.request.get('title'))
+        content = cgi.escape(self.request.get('content'))
+        owner = str(users.get_current_user())
+        post = PostEntry()
+        post.blogName = blog
+        post.owner = owner
+        post.title = title
+        post.content = content
+        post.put()
+        
+        #self.response.write('blog: '+blog+'</br>')
+        #self.response.write('owner'+str(users.get_current_user())+'</br>')
+        #self.response.write('title: '+title+'</br>')
+        #self.response.write('content: '+content+'</br>')
+        
+
+        
         self.response.write(template.render(os.path.join(os.path.dirname(__file__),'writePost.html'),self.context))
 
 
@@ -111,27 +165,48 @@ class createBlogHandler(webapp2.RequestHandler):
         self.response.write(template.render(os.path.join(os.path.dirname(__file__),'createBlog.html'),self.context))
 
 
-# step 1 : manage user's own blog, list all the blogs and add a href to write post change to template
+# step 1 : manage user's own blog, list all the blogs and add a href to  post change to template
 class manageBlogHandler(webapp2.RequestHandler):
-    def get(self):
+  context = {
+    'welcome': 'Welcome to Blog',
+    'blogs' : []
+    }
+  def get(self):
         if users.get_current_user():
-            query = BlogEntry.query(BlogEntry.owner==str(users.get_current_user()))
-            self.response.write('manage blog</br>')
-            for blog in query:
-                self.response.write('<a href = "/viewPost?blogName='+blog.blogName+'">'+blog.blogName+'</a></br>')#here writePost should be replaced by viewPost
+          self.context['welcome'] = str(users.get_current_user())
+          query = BlogEntry.query(BlogEntry.owner==str(users.get_current_user()))
+          self.context['blogs'] = query
+          self.response.write(template.render(os.path.join(os.path.dirname(__file__),'manageBlog.html'),self.context))
+          if query.count()==0:
+            self.response.write('No blogs, Create One!!')
         else:
-            self.redirect(users.create_login_url(self.request.uri))
+          self.redirect(users.create_login_url(self.request.uri))
+
+class viewBlogHandler(webapp2.RequestHandler):
+  def get(self):
+    blogName = self.request.get('blogName')
+    self.response.write('view blog of '+blogName+'</br>')
+    self.response.write('<a href = "/writePost?blogName='+blogName+'">Write Post</a></br>')
+    query = PostEntry().query(PostEntry.blogName==blogName)
+    for p in query:
+      self.response.write('Post'+' title '+p.title+' content:'+ p.content+''+'</br>')
+
+
+
             
 #step 3: select posts from one blog provided from http-get method, show it
 class viewPostHandler(webapp2.RequestHandler):
     def get(self):
-        if users.get_current_user():
             blogName = self.request.get('blogName')
             self.response.write('View Post from blog: '+blogName)
+            query = PostEntry().query(PostEntry.blogName==blogName)
+            for p in query:
+              self.response.write('Post: '+p.title)
             
-        else:
-            self.redirect(users.create_login_url(self.request.uri))
         
+
+
+
 
 
 
@@ -140,5 +215,6 @@ app = webapp2.WSGIApplication([
     ('/createBlog', createBlogHandler),
     ('/writePost',writePostHandler),
     ('/manageBlog',manageBlogHandler),
-    ('/viewPost',viewPostHandler)
+    ('/viewPost',viewPostHandler),
+    ('/viewBlog',viewBlogHandler)
 ], debug=True)

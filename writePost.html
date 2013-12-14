@@ -1,16 +1,26 @@
 <html>
 <a href="/">return to home page</a>
-<h1>{{welcome}}</h1>
-<div style="{{display1}}">
+<h3>{{welcome}}</h3>
+<h3>{{blogName}}</h3>
+<div style="{{display_form}}">
 <form action = "/writePost" method = "post">
-Enter Title:</br>
+<input type="hidden" name="chooseFromWhere" value = "{{fromWhere}}">
+<input type="hidden" name = "definedBlog"value ="{{blogName}}" />
+<div style="{{display_selection}}">
+<select name="choosenBlog">
+{% for blog in blogs %}
+<option value="{{blog.blogName}}">{{blog.blogName}}</option>
+{% endfor %}
+</select>
+</div>
+<h3>Post Title: </h3>
 <input type = "text" name = "title" value = "Title" size = "50"/></br>
-Enter Content:</br>
-<textarea rows = "20" cols = "70" name = "body">Enter your post here </textarea></br>
+<h3>Post Content:</h3>
+<textarea rows = "20" cols = "70" name = "content">Enter your post here </textarea></br>
 <input type ="submit" value = "submit"/>
 </form>
 </div>
-<div style="{{display2}}">
+<div style="{{display_write_success}}">
 <h2>
 Write Post Successfully
 </h2>

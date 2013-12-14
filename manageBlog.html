@@ -1,0 +1,12 @@
+<html>
+  <a href="/">return to home page</a></br>
+  <a href="/createBlog">Create Blog</a><br>
+  <a href="/writePost">Write Post</a><br>
+  <h1>
+    Hello {{ welcome }}
+  </h1>
+
+  {% for blog in blogs %}
+  <a href="/viewBlog?blogName={{blog.blogName}}">{{blog.blogName}}</a></br>
+  {% endfor %}
+</html>
