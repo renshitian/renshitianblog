@@ -7,6 +7,6 @@
   </h1>
 
   {% for blog in blogs %}
-  <a href="/viewBlog?blogName={{blog.blogName}}">{{blog.blogName}}</a></br>
+  <a href="/viewBlog?blogName={{blog.blogName}}&owner={{blog.owner}}">{{blog.blogName}}</a></br>
   {% endfor %}
 </html>

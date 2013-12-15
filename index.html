@@ -12,6 +12,6 @@
      Bloglist:</br>
   </h2>
   {% for blog in blogs %}
-  {{blog.blogName}} from {{blog.owner}}</br>
+  <a href="/viewBlog?blogName={{blog.blogName}}&owner={{blog.owner}}">{{blog.blogName}} from {{blog.owner}}</a></br>
   {% endfor %}
 </html>
