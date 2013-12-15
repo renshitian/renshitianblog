@@ -46,16 +46,16 @@ class PostEntry(ndb.Model):
 
 class ViewPost:
   blogName=''
-  date=''
   owner=''
   title=''
   content=''
-  def __init__(self,blogName,date,owner,title,content):
+  def __init__(self,blogName,owner,title,content,date):
     self.blogName = blogName
     self.date = date
     self.owner = owner
     self.title = title
-    self.content = content
+    #set to 500 when finished
+    self.content = content[:500]
 
 
 class MainHandler(webapp2.RequestHandler):
@@ -198,6 +198,15 @@ class viewBlogHandler(webapp2.RequestHandler):
     'posts' : [],
     'owner' : ''
     }
+
+
+  def createViewPosts(self,query):
+    viewPosts=[]
+    for post in query:
+      tmp = ViewPost(post.blogName,post.owner,post.title,post.content,post.date)
+      viewPosts.append(tmp)
+    return viewPosts
+  
   def get(self):
     if users.get_current_user():
       self.context['display_user_panel'] = 'inline'
@@ -217,7 +226,6 @@ class viewBlogHandler(webapp2.RequestHandler):
    
     postList=[]
     #used for ViewPost object for content of 500 chars
-    viewPosts=[]
 
     
     if query.count() > self.maxP*int(pageNo):
@@ -234,10 +242,12 @@ class viewBlogHandler(webapp2.RequestHandler):
       else:
         iterator.next()
       n=n+1
-    
+
+    viewPosts= self.createViewPosts(query)
     #gen ju page no lai pan duan dang qian ye mian xu yao xian shi na xie tiao posts, ran hou pan duan shi fou hai you sheng xia de post ru you display next page link
     #mei you le ze display:none next page link
-    self.context['posts'] = postList    
+    self.context['posts'] = viewPosts
+    
     self.response.write('page no is 1</br>'+'query count = '+str(query.count())+'</br>')
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewBlog.html'),self.context))
 
@@ -280,9 +290,11 @@ class viewBlogHandler(webapp2.RequestHandler):
       else:
         iterator.next()
       n=n+1
- 
+      
+    viewPosts=self.createViewPosts(query)
+    self.context['posts'] = viewPosts
     self.context['page'] = str(p)
-    self.context['posts'] = postList
+    #self.context['posts'] = postList
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewBlog.html'),self.context))
 
 
@@ -293,14 +305,16 @@ class viewBlogHandler(webapp2.RequestHandler):
 class viewPostHandler(webapp2.RequestHandler):
     def get(self):
             blogName = self.request.get('blogName')
-            #postTitle = self.request.get('postTitle')---------------------------------------todo
-            #data = self.request.get('data')-------------------------------------todo use str(post.data)
-            self.response.write('View Post from blog: '+blogName)
-            query = PostEntry().query(PostEntry.blogName==blogName)
-            for p in query:
-              self.response.write('Post: '+p.title)
-            
-        
+            postTitle = self.request.get('title')
+            owner = self.request.get('owner')
+            queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
+            blogObject = queryBlog.get()
+            parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
+            query = PostEntry.query(PostEntry.title==postTitle,ancestor=parent_key)
+            post = query.get()
+            context={}
+            context['post'] = post
+            self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewPost.html'),context))     
 
 
 
@@ -313,5 +327,5 @@ app = webapp2.WSGIApplication([
     ('/writePost',writePostHandler),
     ('/manageBlog',manageBlogHandler),
     ('/viewPost',viewPostHandler),
-    ('/viewBlog',viewBlogHandler)
+    ('/viewBlog',viewBlogHandler),
 ], debug=True)

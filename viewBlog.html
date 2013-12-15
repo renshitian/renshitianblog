@@ -8,7 +8,10 @@
 
 <h3> Posts in {{blogName}}:</h3>
   {% for post in posts%}
-	<h4>{{post.title}};{{post.content}};{{post.date}}</h4>
+	<h4>Title: {{post.title}}   <a href="/viewPost?blogName={{blogName}}&owner={{owner}}&title={{post.title}}">view</a>  </br> 
+	           {{post.date}}</br>
+	           {{post.content}}</br>
+	</h4>
   {% endfor %}
 
 <div style="display:{{display_nextpage}}">
