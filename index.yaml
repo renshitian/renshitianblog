@@ -11,6 +11,12 @@ indexes:
 # your application using appcfg.py.
 
 - kind: PostEntry
+  properties:
+  - name: tags
+  - name: date
+    direction: desc
+
+- kind: PostEntry
   ancestor: yes
   properties:
   - name: date

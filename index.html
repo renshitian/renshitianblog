@@ -8,9 +8,16 @@
 <a href="/manageBlog">Manage Blog</a><br>
 <a href="/writePost">Write Post</a><br>
 </div>
-  <h2>
+<h3>
+  Tags:
+	{%for tag in tags%}
+	<a href = "/viewBlog?tag={{tag}}">{{tag}} </a>
+        {%endfor%}
+
+</h3>
+  <h3>
      Bloglist:</br>
-  </h2>
+  </h3>
   {% for blog in blogs %}
   <a href="/viewBlog?blogName={{blog.blogName}}&owner={{blog.owner}}">{{blog.blogName}} from {{blog.owner}}</a></br>
   {% endfor %}

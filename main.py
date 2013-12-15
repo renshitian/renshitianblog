@@ -51,8 +51,9 @@ class ViewPost:
   owner=''
   title=''
   content=''
+  tags=[]
   
-  def __init__(self,blogName,owner,title,content,date,modifydate):
+  def __init__(self,blogName,owner,title,content,date,modifydate,tags):
     self.blogName = blogName
     self.date = date
     self.owner = owner
@@ -60,27 +61,40 @@ class ViewPost:
     #set to 500 when finished
     self.content = content[:500]
     self.modifydate = modifydate
+    self.tags = tags
 
 class MainHandler(webapp2.RequestHandler):
 
-    def get(self):
-        context = {
-            'display1' : 'display:none',
-            'welcome': 'Welcome to Blog',
-            'blogs' : []
-        }
-        if users.get_current_user():
-            context['login_url'] = users.create_logout_url(self.request.uri)
-            context['login_text'] = "Log Out"
-            context['display1'] = 'display:inline'
-            context['welcome'] = 'Hello  '+str(users.get_current_user())
-            
-        else:
-            context['login_url'] = users.create_login_url(self.request.uri)
-            context['login_text'] = "Log In"
-        query = BlogEntry.query().order(-BlogEntry.date)
-        context['blogs'] = query
-        self.response.write(template.render(os.path.join(os.path.dirname(__file__),'index.html'),context))
+
+  def collectTags(self):
+    tags = set()
+    query = PostEntry.query()
+    for post in query:
+        for tag in post.tags:
+          tags.add(tag)
+    return tags
+
+    
+
+  def get(self):
+    context = {
+      'display1' : 'display:none',
+      'welcome': 'Welcome to Blog',
+      'blogs' : []
+      }
+    if users.get_current_user():
+      context['login_url'] = users.create_logout_url(self.request.uri)
+      context['login_text'] = "Log Out"
+      context['display1'] = 'display:inline'
+      context['welcome'] = 'Hello  '+str(users.get_current_user())
+    else:
+      context['login_url'] = users.create_login_url(self.request.uri)
+      context['login_text'] = "Log In"
+    query = BlogEntry.query()
+    context['blogs'] = query
+    context['tags'] = self.collectTags()
+    self.response.write(template.render(os.path.join(os.path.dirname(__file__),'index.html'),context))
+    #self.response.write('tags are '+str(self.collectTags()))
 
 class writePostHandler(webapp2.RequestHandler):
     context={
@@ -160,7 +174,11 @@ class writePostHandler(webapp2.RequestHandler):
           post = query.get()
           
         else:
+          queryBlog = BlogEntry.query(BlogEntry.blogName==blog,BlogEntry.owner==owner)
+          blogObject = queryBlog.get()
+          parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))          
           post = PostEntry(parent=parent_key)
+          post.date = datetime.now()
           post.blogName = blog
           post.owner = owner
 
@@ -216,7 +234,7 @@ class manageBlogHandler(webapp2.RequestHandler):
           self.redirect(users.create_login_url(self.request.uri))
 
 class viewBlogHandler(webapp2.RequestHandler):
-  maxP = 2
+  maxP = 10
   context={
     'display_user_panel' : 'none',
     'display_nextpage' : 'none',
@@ -229,26 +247,38 @@ class viewBlogHandler(webapp2.RequestHandler):
   def createViewPosts(self,query):
     viewPosts=[]
     for post in query:
-      tmp = ViewPost(post.blogName,post.owner,post.title,post.content,post.date,post.modifydate)
+      tmp = ViewPost(post.blogName,post.owner,post.title,post.content,post.date,post.modifydate,post.tags)
       viewPosts.append(tmp)
     return viewPosts
   
   def get(self):
+    
     if users.get_current_user():
       self.context['display_user_panel'] = 'inline'
     else:
       self.context['display_user_panel'] = 'none'
-      
-    blogName = self.request.get('blogName')
-    owner = self.request.get('owner')
+    tagFlag = True
     pageNo = '1'
+    tag=''
     self.context['page']=pageNo
-    self.context['blogName'] = blogName
-    self.context['owner'] = owner
-    queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
-    blogObject = queryBlog.get()
-    parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
-    query = PostEntry.query(ancestor=parent_key).order(-PostEntry.date)
+
+    if self.request.get('tag')=='':
+      blogName = self.request.get('blogName')
+      owner = self.request.get('owner')
+      self.context['nextblogName'] = 'blogName='+blogName
+      self.context['nextowner'] = '&owner='+owner
+      queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
+      blogObject = queryBlog.get()
+      parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
+      query = PostEntry.query(ancestor=parent_key).order(-PostEntry.date)
+      tagFlag=False
+    else:
+      tagFlag=True
+      tag = self.request.get('tag')
+      query = PostEntry.query(PostEntry.tags==tag).order(-PostEntry.date)
+
+
+
    
     postList=[]
     
@@ -269,10 +299,13 @@ class viewBlogHandler(webapp2.RequestHandler):
 
     viewPosts= self.createViewPosts(postList)
     self.context['posts'] = viewPosts
-    if users.get_current_user() and str(users.get_current_user())== owner:
+    if users.get_current_user() and not tagFlag and str(users.get_current_user())== owner:
       self.context['display_edit'] = 'inline'
     else:
       self.context['display_edit'] = 'none'
+
+    if tagFlag:
+      self.context['tagPageNext'] = '&tag='+tag
     self.response.write('page no is 1</br>'+'query count = '+str(query.count())+'</br>')
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewBlog.html'),self.context))
 
@@ -284,20 +317,30 @@ class viewBlogHandler(webapp2.RequestHandler):
     else:
       self.context['display_user_panel'] = 'none'
 
-    blogName = self.request.get('blogName')
-    owner = self.request.get('owner')
     pageNo = cgi.escape(self.request.get('pageno'))
+    if self.request.get('tag')=='':
+      blogName = self.request.get('blogName')
+      owner = self.request.get('owner')
+      self.context['blogName'] = blogName
+      self.context['owner'] = owner
+      self.context['nextblogName'] = 'blogName='+blogName
+      self.context['nextowner'] = '&owner='+owner
+      queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
+      blogObject = queryBlog.get()
+      parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
+      query = PostEntry.query(ancestor=parent_key).order(-PostEntry.date)
+      tagFlag=False
+    else:
+      tagFlag=True
+      tag = self.request.get('tag')
+      query = PostEntry.query(PostEntry.tags==tag).order(-PostEntry.date)
 
-    self.context['blogName'] = blogName
-    self.context['owner'] = owner
-    queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
-    blogObject = queryBlog.get()
-    parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
-    query = PostEntry.query(ancestor=parent_key).order(-PostEntry.date)
     postList = []
     p = int(pageNo)
     p=p+1
     pageNo = str(p)
+
+
     if query.count() > self.maxP*int(pageNo):
       self.context['display_nextpage'] = 'inline'      
     else:
@@ -319,7 +362,7 @@ class viewBlogHandler(webapp2.RequestHandler):
     viewPosts=self.createViewPosts(postList)
     self.context['posts'] = viewPosts
     self.context['page'] = str(p)
-    if users.get_current_user() and str(users.get_current_user())== owner:
+    if users.get_current_user() and not tagFlag and str(users.get_current_user())== owner:
       self.context['display_edit'] = 'inline'
     else:
       self.context['display_edit'] = 'none'      
@@ -357,7 +400,6 @@ class addTagHandler(webapp2.RequestHandler):
     parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
     query = PostEntry.query(PostEntry.title==postTitle,ancestor=parent_key)
     post = query.get()
-    self.response.write('add tags to '+str(post.title))
     self.context['blogName'] = blogName
     self.context['owner'] = owner
     self.context['title'] = postTitle
@@ -382,8 +424,12 @@ class addTagHandler(webapp2.RequestHandler):
     
     self.context['display1'] = 'none'
     self.context['display2'] = 'inline'
-    self.response.write('add tag '+tag+' to '+str(post.title)+'</br>')
-    self.response.write('tags: '+str(tagList))
+    self.context['tag'] = tag
+    self.context['title'] = postTitle
+    self.response.write(template.render(os.path.join(os.path.dirname(__file__),'addTag.html'),self.context))     
+    self.response.write('The current tags are '+str(post.tags))
+    #self.response.write('add tag '+tag+' to '+str(post.title)+'</br>')
+    #self.response.write('tags: '+str(tagList))
 
     
 
