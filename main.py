@@ -38,25 +38,26 @@ class BlogEntry(ndb.Model):
 
 class PostEntry(ndb.Model):
   blogName = ndb.StringProperty()
-  date = ndb.DateTimeProperty(auto_now=True)
+  modifydate = ndb.DateTimeProperty(auto_now=True)
   owner = ndb.StringProperty()
   title = ndb.StringProperty()
   content = ndb.TextProperty()
-
+  date = ndb.DateTimeProperty()
 
 class ViewPost:
   blogName=''
   owner=''
   title=''
   content=''
-  def __init__(self,blogName,owner,title,content,date):
+  
+  def __init__(self,blogName,owner,title,content,date,modifydate):
     self.blogName = blogName
     self.date = date
     self.owner = owner
     self.title = title
     #set to 500 when finished
     self.content = content[:500]
-
+    self.modifydate = modifydate
 
 class MainHandler(webapp2.RequestHandler):
 
@@ -84,24 +85,38 @@ class writePostHandler(webapp2.RequestHandler):
         'display_form' : '',
         'display_write_success' : '',
         'welcome' : '',
-        'blogs' : []
+        'title' : 'defalut title',
+        'content' : 'defalut content',
+        'blogs' : [],
+        'update' : ''
         }
     
     blogName = ''
+    owner=''
     def get(self):
         if users.get_current_user():
             self.blogName = self.request.get('blogName')
             self.context['welcome']=('Author: '+str(users.get_current_user()))
-            query = BlogEntry.query(BlogEntry.owner==str(users.get_current_user()))
 
-            if self.blogName:
+            if self.blogName!='':
+              blogName = self.request.get('blogName')
+              postTitle = self.request.get('title')
+              owner = self.request.get('owner')
+              queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
+              blogObject = queryBlog.get()
+              parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
+              query = PostEntry.query(PostEntry.title==postTitle,ancestor=parent_key)
+              post = query.get()
+              self.context['title'] = post.title
+              self.context['content'] = post.content
               self.context['blogName'] = self.blogName
               self.context['display_selection'] = 'display:none'
               self.context['display_form'] = 'display:inline'
               self.context['fromWhere'] = 'definedBlog'
-              
+              self.context['update'] = '?update=true'
 
             else:
+              query = BlogEntry.query(BlogEntry.owner==str(users.get_current_user()))
               if query.count()>0:
                 self.context['blogName'] = 'Choose Blog to Write Post: '
                 self.context['display_selection'] = 'display:inline'
@@ -129,15 +144,24 @@ class writePostHandler(webapp2.RequestHandler):
         else:
           blog=cgi.escape(self.request.get('definedBlog'))
 
-        queryBlog = BlogEntry.query(BlogEntry.blogName==blog,BlogEntry.owner==str(users.get_current_user()))
-        blogObject = queryBlog.get()
-        parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
         title = cgi.escape(self.request.get('title'))
         content = cgi.escape(self.request.get('content'))
         owner = str(users.get_current_user())
-        post = PostEntry(parent=parent_key)
-        post.blogName = blog
-        post.owner = owner
+        update = self.request.get('update')
+        post = None
+        if update=='true':
+          previousTitle = self.request.get('title')
+          queryBlog = BlogEntry.query(BlogEntry.blogName==blog,BlogEntry.owner==owner)
+          blogObject = queryBlog.get()
+          parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
+          query = PostEntry.query(PostEntry.title==previousTitle,ancestor=parent_key)
+          post = query.get()
+          
+        else:
+          post = PostEntry(parent=parent_key)
+          post.blogName = blog
+          post.owner = owner
+
         post.title = title
         post.content = content
         post.put()
@@ -190,7 +214,7 @@ class manageBlogHandler(webapp2.RequestHandler):
           self.redirect(users.create_login_url(self.request.uri))
 
 class viewBlogHandler(webapp2.RequestHandler):
-  maxP = 10
+  maxP = 2
   context={
     'display_user_panel' : 'none',
     'display_nextpage' : 'none',
@@ -203,7 +227,7 @@ class viewBlogHandler(webapp2.RequestHandler):
   def createViewPosts(self,query):
     viewPosts=[]
     for post in query:
-      tmp = ViewPost(post.blogName,post.owner,post.title,post.content,post.date)
+      tmp = ViewPost(post.blogName,post.owner,post.title,post.content,post.date,post.modifydate)
       viewPosts.append(tmp)
     return viewPosts
   
@@ -225,8 +249,6 @@ class viewBlogHandler(webapp2.RequestHandler):
     query = PostEntry.query(ancestor=parent_key).order(-PostEntry.date)
    
     postList=[]
-    #used for ViewPost object for content of 500 chars
-
     
     if query.count() > self.maxP*int(pageNo):
       self.context['display_nextpage'] = 'inline'         
@@ -243,11 +265,12 @@ class viewBlogHandler(webapp2.RequestHandler):
         iterator.next()
       n=n+1
 
-    viewPosts= self.createViewPosts(query)
-    #gen ju page no lai pan duan dang qian ye mian xu yao xian shi na xie tiao posts, ran hou pan duan shi fou hai you sheng xia de post ru you display next page link
-    #mei you le ze display:none next page link
+    viewPosts= self.createViewPosts(postList)
     self.context['posts'] = viewPosts
-    
+    if users.get_current_user() and str(users.get_current_user())== owner:
+      self.context['display_edit'] = 'inline'
+    else:
+      self.context['display_edit'] = 'none'
     self.response.write('page no is 1</br>'+'query count = '+str(query.count())+'</br>')
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewBlog.html'),self.context))
 
@@ -291,17 +314,15 @@ class viewBlogHandler(webapp2.RequestHandler):
         iterator.next()
       n=n+1
       
-    viewPosts=self.createViewPosts(query)
+    viewPosts=self.createViewPosts(postList)
     self.context['posts'] = viewPosts
     self.context['page'] = str(p)
-    #self.context['posts'] = postList
+    if users.get_current_user() and str(users.get_current_user())== owner:
+      self.context['display_edit'] = 'inline'
+    else:
+      self.context['display_edit'] = 'none'      
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewBlog.html'),self.context))
 
-
-#todo ::::::: print all the blogs and set a href for each blog with http-get parameters of blogName and then href to /viewPost
-
-
-#todo::: after doing the viewBlogHandler, do the feature 4 here            
 class viewPostHandler(webapp2.RequestHandler):
     def get(self):
             blogName = self.request.get('blogName')

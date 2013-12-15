@@ -8,8 +8,13 @@
 
 <h3> Posts in {{blogName}}:</h3>
   {% for post in posts%}
-	<h4>Title: {{post.title}}   <a href="/viewPost?blogName={{blogName}}&owner={{owner}}&title={{post.title}}">view</a>  </br> 
-	           {{post.date}}</br>
+	<h4>Title: {{post.title}}   <a href="/viewPost?blogName={{blogName}}&owner={{owner}}&title={{post.title}}">view</a> 
+	
+	<div style="display:{{display_edit}}">
+	<a href="/writePost?blogName={{blogName}}&owner={{owner}}&title={{post.title}}">edit</a> 
+	</div> </br> 
+	           Create at {{post.date}}</br>
+		   Last modified at {{post.modifydate}}</br>
 	           {{post.content}}</br>
 	</h4>
   {% endfor %}
