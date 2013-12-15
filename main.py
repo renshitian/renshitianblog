@@ -113,7 +113,6 @@ class writePostHandler(webapp2.RequestHandler):
         if users.get_current_user():
             self.blogName = self.request.get('blogName')
             self.context['welcome']=('Author: '+str(users.get_current_user()))
-
             if self.blogName!='':
               blogName = self.request.get('blogName')
               postTitle = self.request.get('title')
@@ -130,8 +129,9 @@ class writePostHandler(webapp2.RequestHandler):
               self.context['display_form'] = 'display:inline'
               self.context['fromWhere'] = 'definedBlog'
               self.context['update'] = '?update=true'
-
+              self.response.write('update post')
             else:
+              self.response.write('new post')
               query = BlogEntry.query(BlogEntry.owner==str(users.get_current_user()))
               if query.count()>0:
                 self.context['blogName'] = 'Choose Blog to Write Post: '
@@ -139,6 +139,9 @@ class writePostHandler(webapp2.RequestHandler):
                 self.context['display_form'] = 'display:inline'
                 self.context['blogs'] = query
                 self.context['fromWhere'] = 'selection'
+                self.context['title'] = 'default title'
+                self.context['content'] = 'default content'
+                self.context['update'] = ''
               else:
                 self.context['blogName'] = 'To Write Post, Create Blog First!!'
                 self.context['display_form'] = 'display:none'
@@ -170,7 +173,8 @@ class writePostHandler(webapp2.RequestHandler):
           queryBlog = BlogEntry.query(BlogEntry.blogName==blog,BlogEntry.owner==owner)
           blogObject = queryBlog.get()
           parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
-          query = PostEntry.query(PostEntry.title==previousTitle,ancestor=parent_key)
+          #query = PostEntry.query(PostEntry.title==previousTitle,ancestor=parent_key)
+          query = PostEntry.query(PostEntry.title==previousTitle,PostEntry.blogName==blog,PostEntry.owner==owner)
           post = query.get()
           
         else:
@@ -178,6 +182,7 @@ class writePostHandler(webapp2.RequestHandler):
           blogObject = queryBlog.get()
           parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))          
           post = PostEntry(parent=parent_key)
+          #query = PostEntry.query(PostEntry.title==title,PostEntry.blogName==blog,PostEntry.owner==owner)
           post.date = datetime.now()
           post.blogName = blog
           post.owner = owner
