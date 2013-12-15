@@ -1,0 +1,22 @@
+<html>
+<a href="/">return to home page</a></br>
+<a href="/manageBlog">Manage Blog</a><br>
+<a href="/writePost">Write Post</a><br>
+<div style="display:{{display1}}">
+<p>
+<form action = "/addTag" method = "post">
+Enter Tag:</br>
+<input type = "hidden" name = "blogName" value = "{{blogName}}"/>
+<input type = "hidden" name = "owner" value = "{{owner}}"/>
+<input type = "hidden" name = "title" value = "{{title}}"/>
+<input type = "text" name = "tag" value = "" size = "50"/></br>
+<input type ="submit" value = "ADD"/>
+</form>
+</p>
+</div>
+<div style="display:{{display2}}">
+<h2>
+Add tag {{tag}} Successfully 
+</h2>
+</div>
+</html>

@@ -43,6 +43,8 @@ class PostEntry(ndb.Model):
   title = ndb.StringProperty()
   content = ndb.TextProperty()
   date = ndb.DateTimeProperty()
+  tags = ndb.StringProperty(repeated=True)
+  
 
 class ViewPost:
   blogName=''
@@ -324,21 +326,66 @@ class viewBlogHandler(webapp2.RequestHandler):
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewBlog.html'),self.context))
 
 class viewPostHandler(webapp2.RequestHandler):
-    def get(self):
-            blogName = self.request.get('blogName')
-            postTitle = self.request.get('title')
-            owner = self.request.get('owner')
-            queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
-            blogObject = queryBlog.get()
-            parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
-            query = PostEntry.query(PostEntry.title==postTitle,ancestor=parent_key)
-            post = query.get()
-            context={}
-            context['post'] = post
-            self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewPost.html'),context))     
+  def get(self):
+    blogName = self.request.get('blogName')
+    postTitle = self.request.get('title')
+    owner = self.request.get('owner')
+    queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
+    blogObject = queryBlog.get()
+    parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
+    query = PostEntry.query(PostEntry.title==postTitle,ancestor=parent_key)
+    post = query.get()
+    context={}
+    context['post'] = post
+    self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewPost.html'),context))     
 
 
+class addTagHandler(webapp2.RequestHandler):
+  context = {
+    'display1' : 'inline',
+    'display2' : 'inline',
+    'blogName' : '',
+    'owner' : '',
+    'title' : '',
+    }
+  def get(self):
+    blogName = self.request.get('blogName')
+    postTitle = self.request.get('title')
+    owner = self.request.get('owner')
+    queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
+    blogObject = queryBlog.get()
+    parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
+    query = PostEntry.query(PostEntry.title==postTitle,ancestor=parent_key)
+    post = query.get()
+    self.response.write('add tags to '+str(post.title))
+    self.context['blogName'] = blogName
+    self.context['owner'] = owner
+    self.context['title'] = postTitle
+    self.context['display1'] = 'inline'
+    self.context['display2'] = 'none'
+    self.response.write(template.render(os.path.join(os.path.dirname(__file__),'addTag.html'),self.context))     
 
+  def post(self):
+    blogName = cgi.escape(self.request.get('blogName'))
+    postTitle = cgi.escape(self.request.get('title'))
+    owner = cgi.escape(self.request.get('owner'))
+    tag = cgi.escape(self.request.get('tag'))
+    queryBlog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner)
+    blogObject = queryBlog.get()
+    parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
+    query = PostEntry.query(PostEntry.title==postTitle,ancestor=parent_key)
+    post = query.get()
+    tagList = post.tags
+    tagList.append(tag)
+    post.tags = tagList
+    post.put()
+    
+    self.context['display1'] = 'none'
+    self.context['display2'] = 'inline'
+    self.response.write('add tag '+tag+' to '+str(post.title)+'</br>')
+    self.response.write('tags: '+str(tagList))
+
+    
 
 
 
@@ -349,4 +396,5 @@ app = webapp2.WSGIApplication([
     ('/manageBlog',manageBlogHandler),
     ('/viewPost',viewPostHandler),
     ('/viewBlog',viewBlogHandler),
+    ('/addTag',addTagHandler),
 ], debug=True)
