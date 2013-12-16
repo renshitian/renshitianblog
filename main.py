@@ -45,7 +45,11 @@ class PostEntry(ndb.Model):
   content = ndb.TextProperty()
   date = ndb.DateTimeProperty()
   tags = ndb.StringProperty(repeated=True)
-  
+
+class ImageEntry(ndb.Model):
+  permaLink = ndb.StringProperty()
+  image = ndb.BlobProperty()
+
 
 class ViewPost:
   blogName=''
@@ -80,7 +84,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self):
     context = {
       'display1' : 'display:none',
-      'welcome': 'Welcome to Blog </br> of RENSHITIAN',
+      'welcome': 'Welcome to Blog',
       'blogs' : []
       }
     if users.get_current_user():
@@ -168,7 +172,11 @@ class writePostHandler(webapp2.RequestHandler):
         content = cgi.escape(self.request.get('content'))
         owner = str(users.get_current_user())
         update = self.request.get('update')
+        #img add
+        #img = self.request.get('img')
+
         post = None
+        
         if update=='true':
           previousTitle = self.request.get('title')
           queryBlog = BlogEntry.query(BlogEntry.blogName==blog,BlogEntry.owner==owner)
@@ -188,10 +196,13 @@ class writePostHandler(webapp2.RequestHandler):
           post.blogName = blog
           post.owner = owner
 
+        #image add
+        #if img!='':
+        #  post.img = img
+        
         post.title = title
         post.content = content
         post.put()
-        
         self.response.write(template.render(os.path.join(os.path.dirname(__file__),'writePost.html'),self.context))
 
 
@@ -485,11 +496,38 @@ class addTagHandler(webapp2.RequestHandler):
     self.context['title'] = postTitle
     self.context['tags'] = post.tags
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'addTag.html'),self.context))     
-    #self.response.write('The current tags are '+str(post.tags))
-    #self.response.write('add tag '+tag+' to '+str(post.title)+'</br>')
-    #self.response.write('tags: '+str(tagList))
 
+class uploadImageHandler(webapp2.RequestHandler):
+  def get(self):
+    self.response.out.write("""
+          <a href = "/">return to home page</a></br>
+          <form action="/uploadImage" enctype="multipart/form-data" method="post">
+            <div><label>Choose file to upload:</label></div>
+            <div><input type="file" name="img"/></div>
+            <div><input type="submit" value="Upload"></div>
+          </form>
+        </body>
+      </html>""")
+
+  def post(self):
+    img = self.request.get("img")
+    imageEntity = ImageEntry()
+    imageEntity.image = img
+    imageEntity.put()
+    self.response.write('use the link to reference uploaded image: '+'{home_page}/image?key='+str(imageEntity.key.id())+'.png')
     
+  
+class viewImageHandler(webapp2.RequestHandler):
+  def get(self):
+    keystr = self.request.get('key')
+    keyId = keystr.split('.')[0]
+    key = ndb.Key(ImageEntry,long(keyId))
+    img = key.get()
+    if img != None:
+      self.response.headers['Content-Type'] = "image/png"
+      self.response.out.write(img.image)
+    else:
+      self.response.out.write('Image does not exist')
 
 
 
@@ -501,4 +539,6 @@ app = webapp2.WSGIApplication([
     ('/viewPost',viewPostHandler),
     ('/viewBlog',viewBlogHandler),
     ('/addTag',addTagHandler),
+    ('/uploadImage',uploadImageHandler),
+    ('/image',viewImageHandler),
 ], debug=True)

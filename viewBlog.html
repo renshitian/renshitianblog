@@ -4,9 +4,10 @@
   <div style="display:{{display_user_panel}}">
   <a href="/manageBlog">Manage Blog</a><br>
   <a href="/writePost">Write Post</a><br>
+  <a href="/uploadImage">Upload Image</a><br>
   </div>
 
-<h3> Posts in {{blogName}}:</h3>
+<h3> Posts:</h3>
   {% for post in posts%}
 	<h4>Title: {{post.title}}   <a href="/viewPost?blogName={{post.blogName}}&owner={{post.owner}}&title={{post.title}}">view</a> 
 	
