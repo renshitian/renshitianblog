@@ -18,6 +18,7 @@
 import os
 import webapp2
 import cgi
+import re
 from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.ext import ndb
@@ -79,14 +80,14 @@ class MainHandler(webapp2.RequestHandler):
   def get(self):
     context = {
       'display1' : 'display:none',
-      'welcome': 'Welcome to Blog',
+      'welcome': 'Welcome to Blog </br> of RENSHITIAN',
       'blogs' : []
       }
     if users.get_current_user():
       context['login_url'] = users.create_logout_url(self.request.uri)
       context['login_text'] = "Log Out"
       context['display1'] = 'display:inline'
-      context['welcome'] = 'Hello  '+str(users.get_current_user())
+      context['welcome'] = 'Hello '+str(users.get_current_user())
     else:
       context['login_url'] = users.create_login_url(self.request.uri)
       context['login_text'] = "Log In"
@@ -113,7 +114,6 @@ class writePostHandler(webapp2.RequestHandler):
         if users.get_current_user():
             self.blogName = self.request.get('blogName')
             self.context['welcome']=('Author: '+str(users.get_current_user()))
-
             if self.blogName!='':
               blogName = self.request.get('blogName')
               postTitle = self.request.get('title')
@@ -130,8 +130,9 @@ class writePostHandler(webapp2.RequestHandler):
               self.context['display_form'] = 'display:inline'
               self.context['fromWhere'] = 'definedBlog'
               self.context['update'] = '?update=true'
-
+              self.response.write('update post')
             else:
+              self.response.write('new post')
               query = BlogEntry.query(BlogEntry.owner==str(users.get_current_user()))
               if query.count()>0:
                 self.context['blogName'] = 'Choose Blog to Write Post: '
@@ -139,6 +140,9 @@ class writePostHandler(webapp2.RequestHandler):
                 self.context['display_form'] = 'display:inline'
                 self.context['blogs'] = query
                 self.context['fromWhere'] = 'selection'
+                self.context['title'] = 'default title'
+                self.context['content'] = 'default content'
+                self.context['update'] = ''
               else:
                 self.context['blogName'] = 'To Write Post, Create Blog First!!'
                 self.context['display_form'] = 'display:none'
@@ -170,7 +174,8 @@ class writePostHandler(webapp2.RequestHandler):
           queryBlog = BlogEntry.query(BlogEntry.blogName==blog,BlogEntry.owner==owner)
           blogObject = queryBlog.get()
           parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
-          query = PostEntry.query(PostEntry.title==previousTitle,ancestor=parent_key)
+          #query = PostEntry.query(PostEntry.title==previousTitle,ancestor=parent_key)
+          query = PostEntry.query(PostEntry.title==previousTitle,PostEntry.blogName==blog,PostEntry.owner==owner)
           post = query.get()
           
         else:
@@ -178,6 +183,7 @@ class writePostHandler(webapp2.RequestHandler):
           blogObject = queryBlog.get()
           parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))          
           post = PostEntry(parent=parent_key)
+          #query = PostEntry.query(PostEntry.title==title,PostEntry.blogName==blog,PostEntry.owner==owner)
           post.date = datetime.now()
           post.blogName = blog
           post.owner = owner
@@ -379,7 +385,21 @@ class viewPostHandler(webapp2.RequestHandler):
     query = PostEntry.query(PostEntry.title==postTitle,ancestor=parent_key)
     post = query.get()
     context={}
+    content = post.content
+
+
+    httpList = re.findall(r'http[s]?://.*\s|http[s]?://[^\s]*$',content)
+    imgList = re.findall(r'http[s]?://[^\s]*?\.(?:jpg|png|gif)',content)
+
+    for img in imgList:
+      content = content.replace(img,'<img style = "display:inline" src="'+img+'"/ alt="'+img+'">')
+      
+    for h in httpList:
+      if h not in imgList:
+        content = content.replace(h,'<a href="'+h+'">'+h.strip()+'</a>')
+    
     context['post'] = post
+    context['postContent'] = content
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewPost.html'),context))     
 
 
@@ -426,8 +446,9 @@ class addTagHandler(webapp2.RequestHandler):
     self.context['display2'] = 'inline'
     self.context['tag'] = tag
     self.context['title'] = postTitle
+    self.context['tags'] = post.tags
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'addTag.html'),self.context))     
-    self.response.write('The current tags are '+str(post.tags))
+    #self.response.write('The current tags are '+str(post.tags))
     #self.response.write('add tag '+tag+' to '+str(post.title)+'</br>')
     #self.response.write('tags: '+str(tagList))
 

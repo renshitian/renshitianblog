@@ -16,7 +16,11 @@ Enter Tag:</br>
 </div>
 <div style="display:{{display2}}">
 <h2>
-Add tag {{tag}} Successfully to {{title}}
+Add tag {{tag}} Successfully to {{title}}</br>
 </h2>
+Current tags are:</br>
+{%for t in tags%}
+{{t}} 
+{%endfor%}
 </div>
 </html>
