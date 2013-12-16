@@ -14,14 +14,16 @@
 	<a href="/writePost?blogName={{post.blogName}}&owner={{post.owner}}&title={{post.title}}">edit</a> 
 	<a href="/addTag?blogName={{post.blogName}}&owner={{post.owner}}&title={{post.title}}">add tag</a>
 	</div> </br> 
-	           Create at {{post.date}}</br>
-		   Last modified at {{post.modifydate}}</br>
-	           {{post.content}}</br>
+	</h4>
+		Create at {{post.date}}</br>
+		Last modified at {{post.modifydate}}</br>
+	           
+		<p>{{post.content}}</p>
 		   Tags:
 		   {%for tag in post.tags%}
 			{{tag}}
 		   {%endfor%}
-	</h4>
+	
   {% endfor %}
 
 <div style="display:{{display_nextpage}}">
