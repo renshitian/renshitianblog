@@ -49,8 +49,10 @@ class PostEntry(ndb.Model):
   tags = ndb.StringProperty(repeated=True)
 
 class ImageEntry(ndb.Model):
+  title = ndb.StringProperty()
   permaLink = ndb.StringProperty()
   image = ndb.BlobProperty()
+  owner = ndb.StringProperty()
 
 
 class ViewPost:
@@ -134,9 +136,7 @@ class writePostHandler(webapp2.RequestHandler):
               self.context['display_form'] = 'display:inline'
               self.context['fromWhere'] = 'definedBlog'
               self.context['update'] = '?update=true'
-              self.response.write('update post')
             else:
-              self.response.write('new post')
               query = BlogEntry.query(BlogEntry.owner==str(users.get_current_user()))
               if query.count()>0:
                 self.context['blogName'] = 'Choose Blog to Write Post: '
@@ -349,7 +349,6 @@ class viewBlogHandler(webapp2.RequestHandler):
 
     if tagFlag:
       self.context['tagPageNext'] = '&tag='+tag
-    self.response.write('page no is 1</br>'+'query count = '+str(query.count())+'</br>')
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'viewBlog.html'),self.context))
 
 
@@ -393,8 +392,6 @@ class viewBlogHandler(webapp2.RequestHandler):
     else:
       self.context['display_nextpage'] = 'none'
     
-    self.response.write('page no is '+str(p)+'</br>'+'query count = '+str(query.count())+'</br>')
-
     n=1
     iterator = query.iter()
     
@@ -511,29 +508,34 @@ class addTagHandler(webapp2.RequestHandler):
 class uploadImageHandler(webapp2.RequestHandler):
   def get(self):    
     self.response.out.write("""
-          <a href = "/">return to home page</a></br>
-          <form action="/uploadImage" enctype="multipart/form-data" method="post">
-            <div><label>Choose file to upload:</label></div>
-            <div><input type="file" name="img"/></div>
+          <p><a href = "/">Home Page</a></p>
+          <p><form action="/uploadImage" enctype="multipart/form-data" method="post">
+            <p><div><label>Enter title for Image:</label></div>
+            <div><input type="text" name="title"/></div></p>
+            <p><div><label>Choose file to upload:</label></div>
+            <div><input type="file" name="img"/></div></p>
             <div><input type="submit" value="Upload"></div>
-          </form>
+          </form></p>
         </body>
       </html>""")
 
   def post(self):
     #img = self.request.get("img")
     img = images.resize(self.request.get('img'), 500, 500)
+    title = self.request.get('title')
     imageEntity = ImageEntry()
     imageEntity.image = img
+    imageEntity.owner = str(users.get_current_user())
+    imageEntity.title = title
     imageEntity.put()
     url = self.request.url
     path = self.request.path
     l = len(url) - len(path)
     url = url[:l]
-    imageEntity.permalink = url+'/image?key='+str(imageEntity.key.id())+'.png'
+    imageEntity.permaLink = url+'/image?key='+str(imageEntity.key.id())+'.png'
     imageEntity.put()
     self.response.write('<a href = "/"> return to home page</a></br>')
-    self.response.write('use the link to reference uploaded image: '+imageEntity.permalink)
+    self.response.write('use the link to reference uploaded image: '+imageEntity.permaLink)
     
     
   
@@ -583,7 +585,17 @@ class rssHandler(webapp2.RequestHandler):
     self.response.headers['Content-Type'] = 'text/xml'
     self.response.write(xmlContent)
 
-  
+
+
+class checkImageHandler(webapp2.RequestHandler):
+  def get(self):
+    owner = str(users.get_current_user())
+    query= ImageEntry.query(ImageEntry.owner==owner)
+    self.response.write('<p><a href = "/">Home Page</a></p>')
+    self.response.write('<p>Images Owner: '+owner+'</p>')
+    for img in query:
+      self.response.write('<p>Title: '+str(img.title)+'</br>PermaLink: '+str(img.permaLink)+'</p>')
+    
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
@@ -596,4 +608,5 @@ app = webapp2.WSGIApplication([
     ('/uploadImage',uploadImageHandler),
     ('/image',viewImageHandler),
     ('/rss',rssHandler),
+    ('/checkImages',checkImageHandler),
 ], debug=True)

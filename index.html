@@ -1,13 +1,14 @@
 <html>
-  <a href="{{login_url}}">{{login_text}}</a><br>
+  <a href="{{login_url}}">{{login_text}}</a></br>
   <h1>
     {{ welcome }}
   </h1>
-<a href="/createBlog">Create Blog</a><br>
+<p><a href="/createBlog">Create Blog</a></p>
 <div style="{{display1}}">
-<a href="/manageBlog">Manage Blog</a><br>
-<a href="/writePost">Write Post</a><br>
-<a href="/uploadImage">Upload Image</a><br>
+<p><a href="/manageBlog">Manage Blog</a></p>
+<p><a href="/writePost">Write Post</a></p>
+<p><a href="/uploadImage">Upload Image</a></p>
+<p><a href="/checkImages">Image Links</a><p>
 </div>
 <h3>
   Tags:
@@ -20,6 +21,6 @@
      Bloglist:</br>
   </h3>
   {% for blog in blogs %}
-  <a href="/viewBlog?blogName={{blog.blogName}}&owner={{blog.owner}}">{{blog.blogName}} from {{blog.owner}}</a></br>
+  <p><a href="/viewBlog?blogName={{blog.blogName}}&owner={{blog.owner}}">{{blog.blogName}} from {{blog.owner}}</a></p>
   {% endfor %}
 </html>
