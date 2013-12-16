@@ -1,13 +1,14 @@
 <html>
-  <a href="/">return to home page</a></br>
-  <a href="/createBlog">Create Blog</a><br>
-  <a href="/writePost">Write Post</a><br>
-  <a href="/uploadImage">Upload Image</a><br>
+  <p><a href="/">Home Page</a></p>
+  <p><a href="/createBlog">Create Blog</a><p>
+  <p><a href="/writePost">Write Post</a><p>
+  <p><a href="/uploadImage">Upload Image</a></p>
+  <p><a href="/checkImages">Image Links</a><p>
   <h1>
     Hello {{ welcome }}
   </h1>
 
   {% for blog in blogs %}
-  <a href="/viewBlog?blogName={{blog.blogName}}&owner={{blog.owner}}">{{blog.blogName}}</a></br>
+  <p><a href="/viewBlog?blogName={{blog.blogName}}&owner={{blog.owner}}">{{blog.blogName}}</a></p>
   {% endfor %}
 </html>
