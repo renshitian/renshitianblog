@@ -304,7 +304,26 @@ class viewBlogHandler(webapp2.RequestHandler):
       n=n+1
 
     viewPosts= self.createViewPosts(postList)
+
+    httpList=[]
+    imgList=[]
+    viewcontent=''
+    for viewpost in viewPosts:
+      viewcontent = viewpost.content
+      httpList = re.findall(r'http[s]?://.*\s|http[s]?://[^\s]*$',viewcontent)
+      imgList = re.findall(r'http[s]?://[^\s]*?\.(?:jpg|png|gif)',viewcontent)
+    
+      for img in imgList:
+        viewcontent = viewcontent.replace(img,'<img style = "display:inline" src="'+img+'"/ alt="'+img+'">')
+      
+      for h in httpList:
+        if h not in imgList:
+          viewcontent = viewcontent.replace(h,'<a href="'+h+'">'+h.strip()+'</a>')
+      viewpost.content = viewcontent
+
+
     self.context['posts'] = viewPosts
+
     if users.get_current_user() and not tagFlag and str(users.get_current_user())== owner:
       self.context['display_edit'] = 'inline'
     else:
