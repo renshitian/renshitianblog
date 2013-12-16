@@ -22,11 +22,13 @@ import re
 from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.ext import ndb
-
+from google.appengine.api import images
 from datetime import *
 
 def createKeyForBlog(blogName,user,date):
   return ndb.Key('Blog',blogName,user,date)
+
+
 
 
 
@@ -78,8 +80,6 @@ class MainHandler(webapp2.RequestHandler):
         for tag in post.tags:
           tags.add(tag)
     return tags
-
-    
 
   def get(self):
     context = {
@@ -257,7 +257,8 @@ class viewBlogHandler(webapp2.RequestHandler):
     'display_nextpage' : 'none',
     'blogName' : '',
     'posts' : [],
-    'owner' : ''
+    'owner' : '',
+    'tagorblog' : '',
     }
 
 
@@ -289,9 +290,15 @@ class viewBlogHandler(webapp2.RequestHandler):
       parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
       query = PostEntry.query(ancestor=parent_key).order(-PostEntry.date)
       tagFlag=False
+      #f10 add
+      self.context['tagorblog'] = 'Blog: '+blogName
+      self.context['display_rss'] ='inline'
     else:
       tagFlag=True
       tag = self.request.get('tag')
+      self.context['tagorblog'] = 'Tag: '+tag
+      #f10 add
+      self.context['display_rss'] ='none'
       query = PostEntry.query(PostEntry.tags==tag).order(-PostEntry.date)
 
 
@@ -366,8 +373,12 @@ class viewBlogHandler(webapp2.RequestHandler):
       parent_key = createKeyForBlog(blogObject.blogName,blogObject.owner,str(blogObject.date))
       query = PostEntry.query(ancestor=parent_key).order(-PostEntry.date)
       tagFlag=False
+      #f10 add
+      self.context['display_rss'] ='inline'
     else:
       tagFlag=True
+      #f10 add
+      self.context['display_rss'] ='none'
       tag = self.request.get('tag')
       query = PostEntry.query(PostEntry.tags==tag).order(-PostEntry.date)
 
@@ -498,7 +509,7 @@ class addTagHandler(webapp2.RequestHandler):
     self.response.write(template.render(os.path.join(os.path.dirname(__file__),'addTag.html'),self.context))     
 
 class uploadImageHandler(webapp2.RequestHandler):
-  def get(self):
+  def get(self):    
     self.response.out.write("""
           <a href = "/">return to home page</a></br>
           <form action="/uploadImage" enctype="multipart/form-data" method="post">
@@ -510,11 +521,20 @@ class uploadImageHandler(webapp2.RequestHandler):
       </html>""")
 
   def post(self):
-    img = self.request.get("img")
+    #img = self.request.get("img")
+    img = images.resize(self.request.get('img'), 500, 500)
     imageEntity = ImageEntry()
     imageEntity.image = img
     imageEntity.put()
-    self.response.write('use the link to reference uploaded image: '+'{home_page}/image?key='+str(imageEntity.key.id())+'.png')
+    url = self.request.url
+    path = self.request.path
+    l = len(url) - len(path)
+    url = url[:l]
+    imageEntity.permalink = url+'/image?key='+str(imageEntity.key.id())+'.png'
+    imageEntity.put()
+    self.response.write('<a href = "/"> return to home page</a></br>')
+    self.response.write('use the link to reference uploaded image: '+imageEntity.permalink)
+    
     
   
 class viewImageHandler(webapp2.RequestHandler):
@@ -529,7 +549,41 @@ class viewImageHandler(webapp2.RequestHandler):
     else:
       self.response.out.write('Image does not exist')
 
+class rssHandler(webapp2.RequestHandler):
+  def get(self):
+    blogName = self.request.get('blogName')
+    owner = self.request.get('owner')
+    blog = BlogEntry.query(BlogEntry.blogName==blogName,BlogEntry.owner==owner).get()
+    query = PostEntry.query(PostEntry.blogName==blogName,PostEntry.owner==owner)
 
+    if blog == None:
+      self.response.write('No such blog')
+    else:
+      xmlContent = ''' <?xml version="1.0" encoding="UTF-8"?>
+                  <?xml-stylesheet type="text/xsl" href="/css/rss_xml_style.css"?>
+                  <rss version="2.0">
+                  <blog>
+                    <blogName>'''+blog.blogName+'</blogName>'+'''
+                    <owner>'''+blog.owner+'</owner>'+'''
+                    <date>'''+str(blog.date)+'</date>'
+      for post in query:
+        xmlContent = xmlContent +'''
+                    <post>
+                      <modifydate>'''+str(post.modifydate)+'</modifydate>'+'''
+                      <title>'''+post.title+'</title>'+'''
+                      <createdate>'''+str(post.date)+'</createdate>'+'''
+                      <content>'''+str(post.content)+'</content>'
+        for tag in post.tags:
+          xmlContent = xmlContent + '<tag>'+tag+'</tag>'
+      
+      xmlContent = xmlContent + '</post>'
+
+
+    xmlContent = xmlContent + '</blog>'  
+    self.response.headers['Content-Type'] = 'text/xml'
+    self.response.write(xmlContent)
+
+  
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
@@ -541,4 +595,5 @@ app = webapp2.WSGIApplication([
     ('/addTag',addTagHandler),
     ('/uploadImage',uploadImageHandler),
     ('/image',viewImageHandler),
+    ('/rss',rssHandler),
 ], debug=True)

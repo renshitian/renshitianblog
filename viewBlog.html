@@ -1,13 +1,16 @@
 <html>
   <a href="/">return to home page</a></br>
-  <a href="/createBlog">Create Blog</a><br>
+  <a href="/createBlog">Create Blog</a></br>
   <div style="display:{{display_user_panel}}">
-  <a href="/manageBlog">Manage Blog</a><br>
-  <a href="/writePost">Write Post</a><br>
-  <a href="/uploadImage">Upload Image</a><br>
+  <a href="/manageBlog">Manage Blog</a></br>
+  <a href="/writePost">Write Post</a></br>
+  <a href="/uploadImage">Upload Image</a></br>
   </div>
 
-<h3> Posts:</h3>
+<h3> Posts for {{tagorblog}}</h3>
+  <div style="display:{{display_rss}}">
+  <a href = "/rss?{{nextblogName}}{{nextowner}}" target = "_blank">RSS</a>
+  </div>
   {% for post in posts%}
 	<h4>Title: {{post.title}}   <a href="/viewPost?blogName={{post.blogName}}&owner={{post.owner}}&title={{post.title}}">view</a> 
 	
